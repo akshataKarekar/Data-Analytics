@@ -1,0 +1,298 @@
+function onOpen() {
+  SpreadsheetApp.getUi()
+      .createMenu('Fitness Planner')
+      .addItem('Generate Plan', 'generateFitnessPlan')
+      .addToUi();
+}
+
+
+function generateFitnessPlan() {
+
+  var ui = SpreadsheetApp.getUi();
+  var result = ui.prompt(
+    'Please enter your name:',
+    ui.ButtonSet.OK_CANCEL);
+
+  var button = result.getSelectedButton();
+  var text = result.getResponseText();
+  if (button == ui.Button.OK) {
+    ui.alert('Hello, ' + text + '!');
+  } else if (button == ui.Button.CANCEL) {
+    ui.alert('You canceled the prompt.');
+  } else if (button == ui.Button.CLOSE) {
+    ui.alert('You closed the prompt.');
+  }
+  // Your code to read user input, generate the fitness plan,
+  // write to the "Fitness Plan" sheet, and potentially send an email
+  // will go here.
+  SpreadsheetApp.getUi()
+      .alert('Generate Plan clicked!'); // Placeholder message
+}
+
+function generateAndSendFitnessPlan() {
+ // Note, need to change onOpen above to agree
+ // 1. Read User Input from the "User Input" sheet
+ const ss = SpreadsheetApp.getActiveSpreadsheet();
+ const userInputSheet = ss.getSheetByName("User Input");
+ if (!userInputSheet) {
+   SpreadsheetApp.getUi().alert("Error: 'User Input' sheet not found.");
+   return;
+ }
+
+
+ const userData = {};
+ // harvest user info
+ userData.name = userInputSheet.getRange("B2").getValue();
+ userData.email = userInputSheet.getRange("B4").getValue();
+ userData.goal = userInputSheet.getRange("B10").getValue();
+ userData.currLevel = userInputSheet.getRange("B17").getValue();
+ userData.prefAct = userInputSheet.getRange("B22").getValue();
+ userData.time = userInputSheet.getRange("B20").getValue();
+ userData.perWeek = userInputSheet.getRange("B19").getValue();
+ // note, the "===" is "is equal to"
+ userData.equipment = userInputSheet.getRange("B21").getValue().toLowerCase() === "yes";
+ // debugging code to check inputs
+ // Logger.log(userData);
+ // Create AI Prompt
+ const prompt = createAiPrompt(userData);
+
+
+
+  //2. Generate Fitness Plan using Gemini API
+ const fitnessPlan = callGeminiApi(prompt)
+ if (!fitnessPlan) {
+   SpreadsheetApp.getUi().alert("Error: Failed to generate fitness plan.");
+   return;
+ }
+
+
+  //3. Write Output to the "Fitness Plan" sheet
+ const fitnessPlanSheet = ss.getSheetByName("Fitness Plan");
+ if (!fitnessPlanSheet) {
+   SpreadsheetApp.getUi().alert("Error: 'Fitness Plan' sheet not found.");
+   return;
+ }
+ fitnessPlanSheet.getRange("B2").setValue("Goal: " + userData.goal);
+ fitnessPlanSheet.getRange("B3").setValue("Workout Schedule:\n" + fitnessPlan);
+  //Add more logic to write the plan in a structured way to the sheet
+
+
+  //4. Send Email (Placeholder - Replace with your email sending logic)
+ const emailSent = sendFitnessPlanEmail(userData.email, fitnessPlan);
+ if (emailSent) {
+   SpreadsheetApp.getUi().alert("Fitness plan sent successfully to: " + userData.email);
+ } else {
+   SpreadsheetApp.getUi().alert("Error: Failed to send fitness plan email.");
+ }
+
+
+
+/**
+* Creates a prompt for the AI based on the provided user data.
+* @param {object} userData An object containing the user's fitness data.
+* @return {string} The prompt to be sent to the AI.
+*/
+function createAiPrompt(userData) {
+ let prompt = `Generate a personalized fitness plan based on the following information:\n\n`;
+ prompt += `Name: ${userData.name}\n`;
+ prompt += `Goal: ${userData.goal}\n`;
+ prompt += `Current Fitness Level: ${userData.currLevel}\n`;
+ prompt += `Workouts per week: ${userData.perWeek} \n`;
+ prompt += `Desired workout duration: ${userData.time} minutes \n`;
+ prompt += `Desired workout style: ${userData.prefAct} \n`;
+ prompt += `Access to Gym Equipment: ${userData.equipment ? 'Yes' : 'No'}\n`;
+
+
+ if (userData.age) {
+   prompt += `Age: ${userData.age}\n`;
+ }
+ if (userData.gender) {
+   prompt += `Gender: ${userData.gender}\n`;
+ }
+ if (userData.secondaryGoals) {
+   prompt += `Secondary Goals: ${userData.secondaryGoals}\n`;
+ }
+ if (userData.preferredWorkouts) {
+   prompt += `Preferred Workout Types: ${userData.preferredWorkouts}\n`;
+ }
+ if (userData.injuries && userData.injuries.toLowerCase() === 'yes') {
+   const injuriesDetails = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("User Input").getRange("B20").getValue(); // Assuming injury details are in B20
+   prompt += `Injuries or Limitations: Yes, details: ${injuriesDetails}\n`;
+ } else if (userData.injuries) {
+   prompt += `Injuries or Limitations: ${userData.injuries}\n`;
+ }
+
+
+ prompt += `\nThe fitness plan should include a weekly schedule with specific exercises, sets, reps, and rest times where appropriate. Consider the user's goal, activity level, available time, and equipment. Please format the plan clearly with day-by-day instructions.\n`;
+ prompt += `If possible, also include brief notes on nutrition or recovery relevant to the goal.\n`;
+ Logger.log(prompt);
+ 
+ return prompt;
+}
+
+
+function sendFitnessPlanEmail(recipientEmail, fitnessPlan) {
+ // Placeholder: Replace with your email sending logic
+ // Use MailApp.sendEmail() to send emails from Google Sheets
+ // Example:
+ // MailApp.sendEmail(recipientE
+ //mail, "Your Fitness Plan", fitnessPlan;
+ return true; // Simulate successful sending
+} 
+
+sendPromptEmail();
+addPromptToNewSheet(prompt);
+
+function sendPromptEmail() {
+  // **1. Configuration:**
+  Logger.log(prompt);
+  var recipientEmail = userData.email; // Replace with the recipient's email address
+  var senderEmail = Session.getActiveUser().getEmail(); // Gets the email address of the script's owner
+  var emailSubject = "Prompt  Session";
+  var promptText = "This is the prompt that needs attention or review."; // Replace with your actual prompt
+  var additionalDetails = "There is no additional details to be used"; // You can add more details here if needed
+
+  // **2. Construct the Email Body:**
+  var emailBody = "Hello,\n\n" +
+                  "Please find below the prompt:\n\n" +
+                  prompt + "\n\n";
+
+  if (additionalDetails) {
+    emailBody += "Additional Details:\n" + additionalDetails + "\n\n";
+  }
+
+  emailBody += "Best regards,\n" +
+                 senderEmail;
+
+  // **3. Send the Email:**
+  MailApp.sendEmail(recipientEmail, emailSubject, emailBody);
+
+  Logger.log('Email sent successfully to: ' + recipientEmail);
+}
+
+// **Optional: Function to send an email with results as well:**
+function sendPromptWithResultsEmail(recipientEmail, subject, promptText, resultsText) {
+  var senderEmail = Session.getActiveUser().getEmail();
+  var emailBody = "Hello,\n\n" +
+                  "Please find below the prompt:\n\n" +
+                  promptText + "\n\n";
+
+  if (resultsText) {
+    emailBody += "Here are the results generated by the prompt:\n\n" +
+                   resultsText + "\n\n";
+  }
+
+  emailBody += "Best regards,\n" +
+                 senderEmail;
+
+  MailApp.sendEmail(recipientEmail, subject, emailBody);
+
+  Logger.log('Email with results sent successfully to: ' + recipientEmail);
+
+
+// Example usage (you'll need to call this function with your prompt):
+// addPromptToNewSheet("This is the text of my prompt.");  
+}
+
+function addPromptToNewSheet(prompt) {
+  // 1. Get the active spreadsheet.
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheets = ss.getSheets();
+  var sheetNames = [];
+  for (var i = 0; i < sheets.length; i++) {
+    sheetNames.push(sheets[i].getName());
+  }
+  Logger.log(sheetNames);
+  
+    
+  for (i = 0; i < sheetNames.length; i++) {
+    if (sheetNames.includes("Prompt")) {
+      if (sheetNames[i] == "Prompt") {
+           
+           
+           sheetNames.clearContents();
+      } 
+
+      else 
+
+      {   
+          return 0;
+``
+      }
+     
+  } else
+
+  {
+    
+var sheetName = "Prompt"; 
+          var newSheet = ss.insertSheet(sheetName);
+          newSheet.getRange("A1").setValue("Prompt:");
+          newSheet.getRange("A2").setValue(prompt);
+          break;
+
+  }
+
+
+  }
+
+
+/**
+* Calls the Google Gemini API to generate a fitness plan based on the provided prompt.
+* @param {string} prompt The prompt to send to the Gemini API.
+* @return {string|null} The generated fitness plan, or null if an error occurs.
+*/
+
+
+}
+
+function callGeminiApi(prompt) {
+ const API_KEY = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+ if (!API_KEY) {
+   SpreadsheetApp.getUi().alert('Error: Gemini API key not set. Please follow the setup instructions.');
+   return null;
+ }
+ Logger.log(API_KEY)
+
+
+ const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-pro-exp:generateContent';
+
+
+const payload = {
+   contents: [{
+     parts: [{
+       text: prompt
+     }]
+   }]
+ };
+const options = {
+   method: 'post',
+   headers: {
+     'Content-Type': 'application/json',
+     'x-goog-api-key': API_KEY
+   },
+   payload: JSON.stringify(payload)
+ };
+
+Logger.log(options);
+Logger.log(options);
+try {
+   const response = UrlFetchApp.fetch(API_URL, options);
+   const jsonResponse = JSON.parse(response.getContentText());
+   if (jsonResponse.candidates && jsonResponse.candidates.length > 0 && jsonResponse.candidates[0].content && jsonResponse.candidates[0].content.parts && jsonResponse.candidates[0].content.parts.length > 0) {
+     return jsonResponse.candidates[0].content.parts[0].text;
+   } else if (jsonResponse.error) {
+     Logger.log(`Gemini API Error: ${JSON.stringify(jsonResponse.error)}`);
+     SpreadsheetApp.getUi().alert(`Gemini API Error: ${jsonResponse.error.message || 'An error occurred while calling the Gemini API.'}`);
+     return null;
+   } else {
+     Logger.log(`Gemini API Response Issue: ${JSON.stringify(jsonResponse)}`);
+     SpreadsheetApp.getUi().alert('Error: Unexpected response from the Gemini API.');
+     return null;
+   }
+ } catch (error) {
+   Logger.log(`Error calling Gemini API: ${error}`);
+   SpreadsheetApp.getUi().alert(`Error calling Gemini API: ${error}`);
+   return null;
+ }
+}
+}
