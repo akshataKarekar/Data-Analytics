@@ -4,5 +4,4 @@ The UI Sheet contains a custom menu option generated using App Script which is i
 
 The Sheets with Ski resort, Olympics and HR analytics consists of Excel functions.
 
-The Product Review sheet contains an App script that analysis the sentiments of every product, and translates the feedback in French from the Gemini Model. 
-The script also scrapes every first letter of the Product in a seperate column.
+The Product Review sheet contains an App script that lists the available Gemini models, analysis the sentiments of every product, and translates the feedback in French from the Gemini Model. The script also scrapes every first letter of the Product in a seperate column.
