@@ -1,0 +1,237 @@
+function listGeminiModels() {
+  // This function just prints available models to the console
+  // you pick a sensible output for the following functions:
+  const apiKey =  '';
+
+  // Define the Gemini API endpoint for listing models
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models?key=' + apiKey;
+
+
+  // Configure the request options
+  const options = {
+    'method': 'get',
+    'contentType': 'application/json',
+  };
+  // this is how we catch errors
+  try {
+    // Fetch the list of models
+    const response = UrlFetchApp.fetch(url, options);
+    const json = response.getContentText();
+    const data = JSON.parse(json);
+
+    // Log the models
+    if (data.models) {
+      Logger.log('Available Gemini Models:');
+      data.models.forEach(model => {
+        Logger.log(model.name);
+      });
+    } else {
+      Logger.log('No models found in the response.');
+    }
+
+  } catch (error) {
+    Logger.log('Error fetching models: ' + error);
+  }
+}
+
+function printFirstLetters() {
+  // Specify the sheet name and column number.
+  //const sheetName = "Data"; // Change this to your sheet name.
+  const columnNumber = 3; // Change this to the column number you want (e.g., 1 for column A, 2 for column B, etc.).
+
+  // Get the active spreadsheet.
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  // Get the sheet by its name.
+  //const sheet = spreadsheet.getSheetByName(sheetName);
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0];
+  headers.push('First Letter');
+  const headerRange = sheet.getRange(1, columnNumber, 1);
+  headerRange.setFontWeight("bold");
+  sheet.getRange(1, headers.length, 1, 1).setValues([['First Letter']]);
+
+  // Check if the sheet exists.
+  if (!sheet) {
+    Logger.log(`Sheet "${sheetName}" not found.`);
+    return; // Exit the function if the sheet doesn't exist.
+  }
+
+  // Get the last row in the specified column that contains data.
+  const lastRow = sheet.getLastRow();
+
+  // If the column is empty, stop.
+  if (lastRow === 0) {
+    Logger.log(`Column ${columnNumber} in sheet "${sheetName}" is empty.`);
+    return;
+  }
+  // Get the values from the specified column.
+  const columnValues = sheet.getRange(1, columnNumber, lastRow).getValues();
+  Logger.log(columnValues.length);
+
+  // Iterate through the values in the column.
+  
+  for (let i = 1; i < columnValues.length; i++) {
+    const cellValue = columnValues[i][0]; // Get the value of the current cell.
+
+    // Check if the cell has a value and is a string.
+    if (typeof cellValue === "string" && cellValue) {
+        const firstLetter = cellValue.charAt(0);
+        sheet.getRange(i + 1, headers.length, 1, 1).setValues([
+            [firstLetter]
+        ]);
+        Logger.log(`Row ${i + 1}, Value: "${cellValue}", First Letter: "${firstLetter}"`);
+        
+        
+    
+
+    } else if (cellValue) {
+        Logger.log(`Row ${i + 1}, Value: "${cellValue}", First Letter: Not a string or is empty`);
+    } else {
+        Logger.log(`Row ${i + 1}, Value: , First Letter: Empty cell`);
+    }
+
+   
+
+}
+    
+      
+}
+
+
+function classifyFeedback(feedback) {
+  const apiKey = '';
+  const apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-pro-exp:generateContent';
+  //Logger.log(apiUrl);
+  const prompt = `Please give a one word classification for the following product feedback as Positive, Negative, or Neutral without any punctuation or emphasis: "${feedback}"`;
+  
+  const payload = {
+    contents: [{
+      parts: [{
+        text: prompt
+      }]
+    }]
+  };
+  
+  const options = {
+    method: 'post',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': apiKey
+    },
+    payload: JSON.stringify(payload)
+  };
+  try {
+    const response = UrlFetchApp.fetch(apiUrl, options);
+    const result = JSON.parse(response.getContentText());
+    
+    const fmtResult = result.candidates[0].content.parts[0].text.trim();
+    Logger.log(feedback + "== " + fmtResult);
+    return fmtResult;
+  }  catch (error) {
+    Logger.log('Error for classification: ' + error);
+    return ("ERROR" + error)
+  }
+}
+
+function translateFeedback(feedback, targetLanguage) {
+  // uses a gemini endpoint to translate feedback into a given language
+  // uncomment the line below for testing (skips translation)
+  //return "Translation not available!";
+  const apiKey = '';
+  const apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-pro-exp:generateContent';
+  
+  const prompt = `Give short translation (one sentence if possible, no digressions, explanations, or variations) of this feedback into ${targetLanguage}: "${feedback}"`;
+  
+  const payload = {
+    contents: [{
+      parts: [{
+        text: prompt
+      }]
+    }]
+  };
+  
+  const options = {
+    method: 'post',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': apiKey
+    },
+    payload: JSON.stringify(payload)
+  };
+  try {
+    const response = UrlFetchApp.fetch(apiUrl, options);
+    const result = JSON.parse(response.getContentText());
+    
+    const fmtResult =  result.candidates[0].content.parts[0].text.trim();
+    Logger.log("Translation --> " + fmtResult);
+    return fmtResult;
+  }  catch (error) {
+    Logger.log('Error translating: ' + error);
+    return ("ERROR" + error)
+  }
+}
+
+function processFeedbackData() {
+  // loops over our column of reviews and runs each function (classify, translate, feedback) and adds
+  // the results to the original sheet.
+  // TODO: fix input and output column specifications
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0];
+  
+  // Add new columns for classification and translation
+  headers.push('First Letter', 'Sentiment', 'Translated Feedback (French)'), "Automated Reply";
+  sheet.getRange(1, headers.length, 1, 4).setValues([['First Letter', 'Sentiment', 'Translated Feedback (French)','Automated Reply']]);
+  
+  // Process each row of feedback
+  for (let i = 1; i < data.length; i++) {
+    const feedback = data[i][3]; // Assuming feedback is in the 4th column
+    const printedLetters = printFirstLetters();
+    // Classify feedback
+    const sentiment = classifyFeedback(feedback);
+    
+    // Translate feedback to French (you can change the target language as needed)
+    const translatedFeedback = translateFeedback(feedback, 'French');
+
+    // Add code for getting our reply
+    const csReply = automatedFeedback(feedback); 
+
+     
+    // Update the sheet with results
+    sheet.getRange(i+1, headers.length, 1, 4).setValues([[printedLetters, sentiment, translatedFeedback, csReply]]);
+  }
+}
+
+function automatedFeedback(feedback) {
+  const apiKey = '';
+  const apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-pro-exp:generateContent';
+  
+  const prompt = `Create a one sentence reply for the feedback tone as customer support representative  : "${feedback}"`;
+  
+  const payload = {
+    contents: [{
+      parts: [{
+        text: prompt
+      }]
+    }]
+  };
+  
+  const options = {
+    method: 'post',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': apiKey
+    },
+    payload: JSON.stringify(payload)
+  };
+  
+  const response = UrlFetchApp.fetch(apiUrl, options);
+  const result = JSON.parse(response.getContentText());
+  
+  const fmtResult = result.candidates[0].content.parts[0].text.trim();
+  Logger.log(fmtResult);
+  return fmtResult;
+}
+
+
+
