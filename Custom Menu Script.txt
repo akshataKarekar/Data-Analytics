@@ -1,0 +1,50 @@
+function onOpen() {
+  var ui = SpreadsheetApp.getUi();
+  ui.createMenu('Custom Menu')
+    .addItem('Show Dialog', 'showDialog')
+    .addItem('Show Sidebar', 'showSidebar')
+    .addItem('Show Alert', 'showAlert')
+    .addItem('Show Prompt', 'showPrompt')
+    .addToUi();
+}
+
+function showDialog() {
+  var html = HtmlService.createHtmlOutput('<h1>This is a dialog</h1><p>You can add any HTML content here.</p>')
+    .setWidth(400)
+    .setHeight(300);
+  SpreadsheetApp.getUi().showModalDialog(html, 'Custom Dialog');
+}
+
+function showSidebar() {
+  var html = HtmlService.createHtmlOutput('<h1>This is a sidebar</h1><p>You can add any HTML content here.</p>')
+    .setTitle('Custom Sidebar');
+  SpreadsheetApp.getUi().showSidebar(html);
+}
+
+function showAlert() {
+  var ui = SpreadsheetApp.getUi();
+  ui.alert('Alert', 'This is an alert message!', ui.ButtonSet.OK);
+}
+
+function showPrompt() {
+  var ui = SpreadsheetApp.getUi();
+  var result = ui.prompt(
+    'Please enter your FIRST name:',
+    ui.ButtonSet.OK_CANCEL);
+
+  var button = result.getSelectedButton();
+  var text = result.getResponseText();
+  var result2 = ui.prompt(
+    'Please enter your LAST name:',
+    ui.ButtonSet.OK_CANCEL);
+  var button1 = result2.getSelectedButton();
+  var text1 = result2.getResponseText();
+
+  if (button&&button1 == ui.Button.OK) {
+    ui.alert('Hello, ' + text + ' ' + text1 +'!');
+  } else if (button == ui.Button.CANCEL) {
+    ui.alert('You canceled the prompt.');
+  } else if (button == ui.Button.CLOSE) {
+    ui.alert('You closed the prompt.');
+  }
+}
